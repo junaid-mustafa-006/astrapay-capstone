@@ -32,3 +32,4 @@ credentials*
 *.key
 *.pem
 connection*.json
+model_output/

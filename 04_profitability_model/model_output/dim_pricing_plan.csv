@@ -1,5 +1,0 @@
-pricing_plan,rate_pct,fixed_fee_usd,effective_from,billing_basis
-FLAT_2_0,2.0,0.2,2025-01-01,per successful transaction
-TIERED,1.6,0.12,2025-01-01,per successful transaction
-INTERCHANGE_PLUS,1.4,0.15,2025-01-01,per successful transaction
-ENTERPRISE_NEGOTIATED,1.1,0.08,2025-01-01,per successful transaction
