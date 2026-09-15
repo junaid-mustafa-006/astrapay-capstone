@@ -533,18 +533,23 @@ def route_fees_for(route_cost, route_ids, dates):
 
 
 def gen_settlements(rng, tx, fx, route_cost):
-    """One settlement row per captured transaction. fee_amount == route cost."""
+    """One settlement row per captured transaction.
+
+    fee_amount is the fee AstraPay charges the MERCHANT (AstraPay revenue).
+    The cost AstraPay pays the provider lives in route_cost and is not in here.
+    settlement_amount is what the merchant actually receives.
+    """
     st = fx[fx["rate_type"] == "SETTLEMENT"].set_index(["rate_date", "currency"])["rate_to_usd"]
     cap = tx[tx["status"] == TxnStatus.CAPTURED.value].copy()
 
-    fixed, varpct = route_fees_for(
-        route_cost, cap["route_id"].to_numpy(), cap["created_at"].dt.normalize())
+    plan_rate = cap["pricing_plan"].map({k.value: v[0] for k, v in TAKE_RATE.items()}).to_numpy()
+    plan_fixed = cap["pricing_plan"].map({k.value: v[1] for k, v in TAKE_RATE.items()}).to_numpy()
 
     key = pd.MultiIndex.from_arrays([cap["created_at"].dt.normalize(), cap["currency"]])
     rate_settle = st.reindex(key).to_numpy()
     amt_usd = cap["amount"].to_numpy() * rate_settle
 
-    fee_usd = fixed + varpct * amt_usd
+    fee_usd = amt_usd * plan_rate + plan_fixed
     lag = rng.integers(1, 4, len(cap))
     settle_date = (cap["created_at"].dt.normalize() + pd.to_timedelta(lag, unit="D"))
 
@@ -590,6 +595,18 @@ def gen_chargebacks(rng, tx):
     })
 
 
+def gen_pricing_plan(rng):
+    """Rate card. One row per pricing plan. The contracted merchant fee."""
+    return pd.DataFrame([
+        {"pricing_plan": k.value,
+         "rate_pct": round(v[0] * 100, 4),
+         "fixed_fee_usd": v[1],
+         "effective_from": START.date(),
+         "billing_basis": "per successful transaction"}
+        for k, v in TAKE_RATE.items()
+    ])
+
+
 def generate_clean(rng):
     fx = gen_fx(rng)
     route_cost = gen_route_cost(rng)
@@ -601,7 +618,8 @@ def generate_clean(rng):
     fraud = gen_fraud_decisions(rng, tx)
     settlement = gen_settlements(rng, tx, fx, route_cost)
     chargeback = gen_chargebacks(rng, tx)
-    return dict(fx_rate=fx, route_cost=route_cost, customer=customers, merchant=merchants,
+    return dict(fx_rate=fx, route_cost=route_cost, pricing_plan=gen_pricing_plan(rng),
+                customer=customers, merchant=merchants,
                 merchant_risk_snapshot=snapshots, transaction=tx, payment_event=events,
                 fraud_decision=fraud, settlement=settlement, chargeback=chargeback)
 
@@ -728,6 +746,8 @@ PUBLIC_COLUMNS = {
     "fx_rate": ["rate_date", "currency", "rate_to_usd", "rate_type"],
     "route_cost": ["route_id", "provider", "region", "rate_date", "fixed_fee",
                    "variable_fee_pct"],
+    "pricing_plan": ["pricing_plan", "rate_pct", "fixed_fee_usd", "effective_from",
+                     "billing_basis"],
     "chargeback": ["chargeback_id", "transaction_id", "reason", "amount", "opened_at",
                    "resolved_at"],
     "merchant_risk_snapshot": ["merchant_id", "snapshot_month", "risk_score", "risk_band"],

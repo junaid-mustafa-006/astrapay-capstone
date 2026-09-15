@@ -1,0 +1,8 @@
+check,model_value,source_value,passed
+fact row count equals transaction row count,260287.0,260287.0,True
+fact transaction_id is unique,260287.0,260287.0,True
+successful volume equals captured count (quarantine excluded),233208.0,233208.0,True
+naive risk-snapshot join would inflate row count,3102228.0,260287.0,True
+settlement fees reconcile (transaction side vs settlement side),566298.3,566298.3,True
+split settlements collapsed to one fact row,1334.0,1334.0,True
+naive settlement join inflates fees (proof the pre-aggregation is needed),567423.37,566298.3,True
