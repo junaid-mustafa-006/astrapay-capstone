@@ -33,3 +33,4 @@ credentials*
 *.pem
 connection*.json
 model_output/
+powerbi_model/
